@@ -29,7 +29,7 @@ public class ReportWriter {
     groupedNumberStyle.setDataFormat(dataFormat.getFormat("#,##0.0"));
 
     CellStyle percentStyle = wb.createCellStyle();
-    percentStyle.setDataFormat(dataFormat.getFormat("0.0%"));
+    percentStyle.setDataFormat(dataFormat.getFormat("0.00%"));
 
     // union headers across all rows (for PoC)
     LinkedHashSet<String> headers = new LinkedHashSet<>();
@@ -41,32 +41,31 @@ public class ReportWriter {
 
     int r = 0;
     Row headerRow = s.createRow(r++);
-    headerRow.createCell(0).setCellValue("sourceFile");
-    headerRow.createCell(1).setCellValue("rowNumber");
     for (int i = 0; i < headerList.size(); i++) {
-      headerRow.createCell(i + 2).setCellValue(headerList.get(i));
+      headerRow.createCell(i).setCellValue(headerList.get(i));
     }
 
     for (RowRecord rr : model.normalizedRows()) {
       Row row = s.createRow(r++);
-      row.createCell(0).setCellValue(rr.sourceFile());
-      row.createCell(1).setCellValue(rr.rowNumber());
       for (int i = 0; i < headerList.size(); i++) {
         String key = headerList.get(i);
-        //row.createCell(i + 2).setCellValue(rr.values().getOrDefault(key, ""));
         String value = rr.values().getOrDefault(key, "");
-        Cell cell = row.createCell(i + 2);
+        Cell cell = row.createCell(i);
 
-        if (isNumericColumn(key) && !value.isBlank()) {
+        if ("ДоляПрибыли".equals(key) && !value.isBlank()) {
+          try {
+            System.out.println("DEBUG ratio raw value = " + value);
+            double numericValue = Double.parseDouble(value);
+            cell.setCellValue(numericValue);
+            cell.setCellStyle(percentStyle);
+          } catch (NumberFormatException e) {
+            cell.setCellValue(value);
+          }
+        } else if (isRuNumericColumn(key) && !value.isBlank()) {
           double numericValue = parseRuNumber(value);
           if (!Double.isNaN(numericValue)) {
             cell.setCellValue(numericValue);
-
-            if ("ДоляПрибыли".equals(key)) {
-              cell.setCellStyle(percentStyle);
-            } else {
-              cell.setCellStyle(groupedNumberStyle);
-            }
+            cell.setCellStyle(groupedNumberStyle);
 
           } else {
             cell.setCellValue(value);
@@ -82,11 +81,10 @@ public class ReportWriter {
     }
   }
 
-  private boolean isNumericColumn(String key) {
+  private boolean isRuNumericColumn(String key) {
     return "Кол-во".equals(key)
         || "Сумма".equals(key)
-        || "Прибыль".equals(key)
-        || "ДоляПрибыли".equals(key);
+        || "Прибыль".equals(key);
   }
 
   private double parseRuNumber(String s) {
@@ -121,21 +119,4 @@ public class ReportWriter {
     }
   }
 
-    /*private double parseRuNumber(String s) {
-        if (s == null) return Double.NaN;
-
-        String t = s.trim()
-            .replace("\u00A0", "")
-            .replace(" ", "")
-            .replace(".", "")
-            .replace(",", ".");
-
-        if (t.isEmpty()) return Double.NaN;
-
-        try {
-            return Double.parseDouble(t);
-        } catch (NumberFormatException e) {
-            return Double.NaN;
-        }
-    }*/
 }

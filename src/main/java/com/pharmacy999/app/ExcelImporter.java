@@ -18,6 +18,8 @@ public class ExcelImporter {
     private static final int DATA_START_ROW_INDEX = 3; // Excel row 4
     private static final int TOTALS_ROW_INDEX = 1;
     private static final String PROFIT_HEADER = "Прибыль";// Excel row 2 (Pribil)
+    private final DataFormatter dataFormatter = new DataFormatter(new Locale("ru", "RU"));
+
 
     public ImportResult readAll(List<File> files, ProgressCallback cb) throws Exception {
         List<RowRecord> out = new ArrayList<>();
@@ -57,9 +59,6 @@ public class ExcelImporter {
                     Row row = sheet.getRow(r);
                     if (row == null) continue;
 
-                    // Optional: skip blank rows
-                    //if (isRowBlank(row, headers.size())) continue;
-
                     Map<String, String> values = new LinkedHashMap<>();
                     for (int c = 0; c < headers.size(); c++) {
                         values.put(headers.get(c), getCellAsString(row.getCell(c)));
@@ -74,15 +73,6 @@ public class ExcelImporter {
         return new ImportResult(out, totalProfit);
     }
 
-    private boolean isRowBlank(Row row, int colsToCheck) {
-        for (int c = 0; c < colsToCheck; c++) {
-            String v = getCellAsString(row.getCell(c));
-            if (v != null && !v.isBlank()) return false;
-        }
-        return true;
-    }
-
-
     private List<String> readHeaders(Row headerRow) {
         List<String> headers = new ArrayList<>();
         int last = headerRow.getLastCellNum();
@@ -92,27 +82,11 @@ public class ExcelImporter {
         }
         return headers;
     }
-
     private String getCellAsString(Cell cell) {
         if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> DateUtil.isCellDateFormatted(cell)
-                    ? cell.getDateCellValue().toString()
-                    : stripTrailingZeros(cell.getNumericCellValue());
-            case BOOLEAN -> Boolean.toString(cell.getBooleanCellValue());
-            case FORMULA -> {
-                // For PoC, return the formula string; later you can evaluate.
-                yield cell.getCellFormula();
-            }
-            case BLANK, _NONE, ERROR -> "";
-        };
+        return dataFormatter.formatCellValue(cell).trim();
     }
 
-    private String stripTrailingZeros(double v) {
-        if (v == (long) v) return Long.toString((long) v);
-        return Double.toString(v);
-    }
     private double parseRuNumber(String s) {
         if (s == null) return Double.NaN;
         String t = s.trim()
