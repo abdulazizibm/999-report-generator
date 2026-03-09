@@ -17,7 +17,7 @@ public class ReportService {
         ImportResult res = importer.readAll(inputs, (done, total, msg) -> cb.onProgress(done, total, msg));
 
         cb.onProgress(1, 3, "Analyzing…");
-        ReportModel model = Analyzer.compute(res.rows(), res.totalProfit());
+        ReportModel model = Analyzer.compute(res.rows(), res.totalProfit(), res.totalSales());
 
         cb.onProgress(2, 3, "Writing report…");
         ReportWriter writer = new ReportWriter();

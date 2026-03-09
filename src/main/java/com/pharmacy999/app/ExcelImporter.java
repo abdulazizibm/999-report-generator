@@ -17,13 +17,15 @@ public class ExcelImporter {
     private static final int HEADER_ROW_INDEX = 2;     // Excel row 3
     private static final int DATA_START_ROW_INDEX = 3; // Excel row 4
     private static final int TOTALS_ROW_INDEX = 1;
-    private static final String PROFIT_HEADER = "Прибыль";// Excel row 2 (Pribil)
+    private static final String PROFIT_HEADER = "Прибыль";
+    private static final String SALES_HEADER = "Кол-во";// Excel row 2 (Pribil)
     private final DataFormatter dataFormatter = new DataFormatter(new Locale("ru", "RU"));
 
 
     public ImportResult readAll(List<File> files, ProgressCallback cb) throws Exception {
         List<RowRecord> out = new ArrayList<>();
         double totalProfit = Double.NaN;// empty list for all Excel files
+        double totalSales = Double.NaN;
 
         for (File f : files) {
             cb.onProgress(0, 1, "Reading " + f.getName() + "...");
@@ -41,6 +43,10 @@ public class ExcelImporter {
                 if (profitCol < 0) {
                     throw new IllegalArgumentException("Column '" + PROFIT_HEADER + "' not found in " + f.getName());
                 }
+                int salesCol = headers.indexOf(SALES_HEADER);
+                if (salesCol < 0) {
+                    throw new IllegalArgumentException("Column '" + SALES_HEADER + "' not found in " + f.getName());
+                }
 
                 Row totalsRow = sheet.getRow(TOTALS_ROW_INDEX);
                 if (totalsRow == null) {
@@ -48,7 +54,9 @@ public class ExcelImporter {
                 }
 
                 String totalProfitStr = getCellAsString(totalsRow.getCell(profitCol));
+                String salesStr = getCellAsString(totalsRow.getCell(salesCol));
                 double fileTotalProfit = parseRuNumber(totalProfitStr);
+                totalSales = parseRuNumber(salesStr);
 
                 totalProfit = fileTotalProfit;
 
@@ -70,7 +78,7 @@ public class ExcelImporter {
             }
         }
 
-        return new ImportResult(out, totalProfit);
+        return new ImportResult(out, totalProfit, totalSales);
     }
 
     private List<String> readHeaders(Row headerRow) {

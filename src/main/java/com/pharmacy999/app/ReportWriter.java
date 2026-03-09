@@ -83,7 +83,11 @@ public class ReportWriter {
   private boolean isRuNumericColumn(String key) {
     return "Кол-во".equals(key)
         || "Сумма".equals(key)
-        || "Прибыль".equals(key);
+        || "Прибыль".equals(key)
+        || "Мин на 3 дня".equals(key)
+        || "Max на 7 дней".equals(key)
+        || "Снабжение на 3 дня".equals(key)
+        || "Снабжение на 7 дней".equals(key);
   }
 
   private double parseRuNumber(String s) {

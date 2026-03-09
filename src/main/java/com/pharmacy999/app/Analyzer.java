@@ -12,7 +12,7 @@ public class Analyzer {
     private static final String PROFIT_HEADER = "Прибыль";
     private static final String OUTPUT_COLUMN = "ДоляПрибыли";
 
-    public static ReportModel compute(List<RowRecord> rows, double totalProfit) {
+    public static ReportModel compute(List<RowRecord> rows, double totalProfit, double totalSales) {
         if (rows.isEmpty()) {
             return new ReportModel(List.of());
         }
@@ -24,7 +24,6 @@ public class Analyzer {
 
             double profit = parseRuNumber(rr.values().get(PROFIT_HEADER));
             double ratio = profit / totalProfit;
-
 
             // store result as string for now (consistent with Map<String,String>)
             newValues.put(OUTPUT_COLUMN, format(ratio));
@@ -51,7 +50,6 @@ public class Analyzer {
             if (cumulative > 1.0) {
                 cumulative = 1.0;
             }
-
             newValues.put("НакопДоля", Double.toString(cumulative));
 
             // ABC classification
@@ -63,8 +61,26 @@ public class Analyzer {
             } else {
                 abc = "C";
             }
-
             newValues.put("ABC", abc);
+
+            // Min-Max logic
+            double sales = parseRuNumber(rr.values().get("Кол-во"));
+            double minDouble = ((sales / 30) * 3);
+            double maxDouble = ((sales / 30) * 7);
+
+            int min = (int) Math.round(minDouble);
+            int max = (int) Math.round(maxDouble);
+
+            newValues.put("Мин на 3 дня", Integer.toString(min));
+            newValues.put("Max на 7 дней", Integer.toString(max));
+
+            // Supply logic
+            int remainingGoods = (int) Math.round(parseRuNumber(rr.values().get("Остаток на конец")));
+            int buyForMin = min > remainingGoods ? min - remainingGoods : 0;
+            int buyForMax = max > remainingGoods ? max - remainingGoods : 0;
+
+            newValues.put("Снабжение на 3 дня", Integer.toString(buyForMin));
+            newValues.put("Снабжение на 7 дней", Integer.toString(buyForMax));
 
             outRows.set(i, new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
         }
