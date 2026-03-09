@@ -52,9 +52,8 @@ public class ReportWriter {
         String value = rr.values().getOrDefault(key, "");
         Cell cell = row.createCell(i);
 
-        if ("ДоляПрибыли".equals(key) && !value.isBlank()) {
+        if (("ДоляПрибыли".equals(key) || "НакопДоля".equals(key)) && !value.isBlank()) {
           try {
-            System.out.println("DEBUG ratio raw value = " + value);
             double numericValue = Double.parseDouble(value);
             cell.setCellValue(numericValue);
             cell.setCellStyle(percentStyle);

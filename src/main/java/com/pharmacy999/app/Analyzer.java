@@ -25,18 +25,55 @@ public class Analyzer {
             double profit = parseRuNumber(rr.values().get(PROFIT_HEADER));
             double ratio = profit / totalProfit;
 
+
             // store result as string for now (consistent with Map<String,String>)
             newValues.put(OUTPUT_COLUMN, format(ratio));
 
             outRows.add(new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
         }
 
+        outRows.sort((a, b) -> {
+            double va = parseDoubleSafe(a.values().get("ДоляПрибыли"));
+            double vb = parseDoubleSafe(b.values().get("ДоляПрибыли"));
+            return Double.compare(vb, va); // descending
+        });
+
+        double cumulative = 0.0;
+
+        for (int i = 0; i < outRows.size(); i++) {
+            RowRecord rr = outRows.get(i);
+
+            Map<String, String> newValues = new LinkedHashMap<>(rr.values());
+
+            double ratio = parseDoubleSafe(newValues.get("ДоляПрибыли"));
+            cumulative += ratio;
+
+            if (cumulative > 1.0) {
+                cumulative = 1.0;
+            }
+
+            newValues.put("НакопДоля", Double.toString(cumulative));
+
+            // ABC classification
+            String abc;
+            if (cumulative <= 0.80) {
+                abc = "A";
+            } else if (cumulative <= 0.95) {
+                abc = "B";
+            } else {
+                abc = "C";
+            }
+
+            newValues.put("ABC", abc);
+
+            outRows.set(i, new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
+        }
 
         return new ReportModel(outRows);
     }
     private static double parseRuNumber(String s) {
         if (s == null)
-            return Double.NaN;
+            return 0;
         String t = s.trim()
             .replace("\u00A0", "")
             .replace(" ", "")
@@ -50,20 +87,15 @@ public class Analyzer {
             return Double.NaN;
         }
     }
-
-    private static double parseDouble(String s) {
-        if (s == null) return Double.NaN;
-        String t = s.trim();
-        if (t.isEmpty()) return Double.NaN;
-
-        // tolerate comma decimals if needed
-        t = t.replace(",", ".");
+    private static double parseDoubleSafe(String s) {
+        if (s == null || s.isBlank()) return 0.0;
         try {
-            return Double.parseDouble(t);
+            return Double.parseDouble(s);
         } catch (NumberFormatException e) {
             return Double.NaN;
         }
     }
+
 
     private static String format(double v) {
         if (Double.isNaN(v) || Double.isInfinite(v)) return "";
