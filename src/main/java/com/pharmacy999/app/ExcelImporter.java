@@ -19,7 +19,9 @@ public class ExcelImporter {
     private static final int TOTALS_ROW_INDEX = 1;
     private static final String PROFIT_HEADER = "Прибыль";
     private static final String SALES_HEADER = "Кол-во";// Excel row 2 (Pribil)
-    private final DataFormatter dataFormatter = new DataFormatter(new Locale("ru", "RU"));
+    //private final DataFormatter dataFormatter = new DataFormatter(new Locale("ru", "RU"));
+    private final DataFormatter dataFormatter = new DataFormatter(Locale.of("ru", "RU"));
+
 
 
     public ImportResult readAll(List<File> files, ProgressCallback cb) throws Exception {
