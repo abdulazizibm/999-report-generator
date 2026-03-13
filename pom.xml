@@ -64,25 +64,14 @@
         </configuration>
       </plugin>
 
-      <!--<plugin>
+      <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
-        <executions>
-          <execution>
-            <id>default-cli</id>
-            <configuration>
-              <mainClass>${module.name}/${main.class}</mainClass>
-              <launcher>MyApp</launcher>
-              <jlinkZipName>MyApp</jlinkZipName>
-              <jlinkImageName>MyApp</jlinkImageName>
-              <stripDebug>true</stripDebug>
-              <noHeaderFiles>true</noHeaderFiles>
-              <noManPages>true</noManPages>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>-->
+        <configuration>
+          <mainClass>com.pharmacy999.app.MainApp</mainClass>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>

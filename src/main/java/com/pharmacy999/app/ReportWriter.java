@@ -83,6 +83,8 @@ public class ReportWriter {
   private boolean isRuNumericColumn(String key) {
     return "Кол-во".equals(key)
         || "Сумма".equals(key)
+        || "Сумма приходная".equals(key)
+        || "Сумма со скидкой".equals(key)
         || "Прибыль".equals(key)
         || "Мин на 3 дня".equals(key)
         || "Max на 7 дней".equals(key)

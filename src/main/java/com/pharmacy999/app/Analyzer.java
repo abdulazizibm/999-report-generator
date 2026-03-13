@@ -8,24 +8,27 @@ import java.util.Map;
 
 public class Analyzer {
 
-    // PoC: choose which column we are dividing
     private static final String PROFIT_HEADER = "Прибыль";
     private static final String OUTPUT_COLUMN = "ДоляПрибыли";
 
-    public static ReportModel compute(List<RowRecord> rows, double totalProfit, double totalSales) {
+    public static ReportModel computeTotal(List<RowRecord> rows, double totalProfit) {
         if (rows.isEmpty()) {
             return new ReportModel(List.of());
         }
 
         List<RowRecord> outRows = new ArrayList<>(rows.size());
 
+
         for (RowRecord rr : rows) {
             Map<String, String> newValues = new LinkedHashMap<>(rr.values());
 
             double profit = parseRuNumber(rr.values().get(PROFIT_HEADER));
-            double ratio = profit / totalProfit;
+            double ratio = 0.0;
 
-            // store result as string for now (consistent with Map<String,String>)
+            if (!Double.isNaN(totalProfit) && totalProfit != 0.0) {
+                ratio = profit / totalProfit;
+            }
+
             newValues.put(OUTPUT_COLUMN, format(ratio));
 
             outRows.add(new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
@@ -74,19 +77,113 @@ public class Analyzer {
             newValues.put("Мин на 3 дня", Integer.toString(min));
             newValues.put("Max на 7 дней", Integer.toString(max));
 
-            // Supply logic
-            int remainingGoods = (int) Math.round(parseRuNumber(rr.values().get("Остаток на конец")));
-            int buyForMin = min > remainingGoods ? min - remainingGoods : 0;
-            int buyForMax = max > remainingGoods ? max - remainingGoods : 0;
-
-            newValues.put("Снабжение на 3 дня", Integer.toString(buyForMin));
-            newValues.put("Снабжение на 7 дней", Integer.toString(buyForMax));
 
             outRows.set(i, new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
         }
 
         return new ReportModel(outRows);
     }
+    public static ReportModel computePerPharmacy(List<RowRecord> rows) {
+        if (rows.isEmpty()) {
+            return new ReportModel(List.of());
+        }
+        Map<String, Double> pharmacyTotals = new HashMap<>();
+        for (RowRecord rr : rows) {
+
+            String branch = rr.values()
+                .get("Филиал");
+            double profit = parseRuNumber(rr.values()
+                .get("Прибыль"));
+
+            pharmacyTotals.merge(branch, profit, Double::sum);
+        }
+
+        List<RowRecord> outRows = new ArrayList<>(rows.size());
+
+        for (RowRecord rr : rows) {
+            Map<String, String> newValues = new LinkedHashMap<>(rr.values());
+            String branch = rr.values()
+                .get("Филиал");
+
+            double profit = parseRuNumber(rr.values()
+                .get(PROFIT_HEADER));
+            double pharmacyTotal = pharmacyTotals.getOrDefault(branch, 0.0);
+            double ratio = 0.0;
+
+            if (pharmacyTotal != 0.0) {
+                ratio = profit / pharmacyTotal;
+            }
+
+            // store result as string for now (consistent with Map<String,String>)
+            newValues.put(OUTPUT_COLUMN, format(ratio));
+
+            outRows.add(new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
+        }
+
+        Map<String, List<RowRecord>> rowsByBranch = new LinkedHashMap<>();
+
+        for (RowRecord rr : outRows) {
+            String branch = rr.values()
+                .get("Филиал");
+            rowsByBranch.computeIfAbsent(branch, k -> new ArrayList<>())
+                .add(rr);
+        }
+
+        List<RowRecord> finalRows = new ArrayList<>(outRows.size());
+
+        for (List<RowRecord> branchRows : rowsByBranch.values()) {
+
+            branchRows.sort((a, b) -> {
+                double va = parseDoubleSafe(a.values()
+                    .get("ДоляПрибыли"));
+                double vb = parseDoubleSafe(b.values()
+                    .get("ДоляПрибыли"));
+                return Double.compare(vb, va); // descending inside one pharmacy
+            });
+
+            double cumulative = 0.0;
+            for (RowRecord rr : branchRows) {
+                Map<String, String> newValues = new LinkedHashMap<>(rr.values());
+
+                double ratio = parseDoubleSafe(newValues.get("ДоляПрибыли"));
+                cumulative += ratio;
+
+                if (cumulative > 1.0) {
+                    cumulative = 1.0;
+                }
+
+                newValues.put("НакопДоля", Double.toString(cumulative));
+
+                // ABC classification stays the same, but now per pharmacy
+                String abc;
+                if (cumulative <= 0.80) {
+                    abc = "A";
+                } else if (cumulative <= 0.95) {
+                    abc = "B";
+                } else {
+                    abc = "C";
+                }
+                newValues.put("ABC", abc);
+
+                // Min-Max logic unchanged
+                double sales = parseRuNumber(rr.values()
+                    .get("Кол-во"));
+                double minDouble = (sales / 30.0) * 3.0;
+                double maxDouble = (sales / 30.0) * 7.0;
+
+                int min = (int) Math.round(minDouble);
+                int max = (int) Math.round(maxDouble);
+
+                newValues.put("Мин на 3 дня", Integer.toString(min));
+                newValues.put("Max на 7 дней", Integer.toString(max));
+
+                finalRows.add(new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
+            }
+
+        }
+        return new ReportModel(finalRows);
+    }
+
     private static double parseRuNumber(String s) {
         if (s == null)
             return 0;
