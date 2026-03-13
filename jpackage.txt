@@ -1,0 +1,9 @@
+jpackage ^
+  --type app-image ^
+  --name Pharmacy999 ^
+  --input target ^
+  --main-jar 999-report-generator-1.0-SNAPSHOT.jar ^
+  --main-class com.pharmacy999.app.MainApp ^
+  --dest dist ^
+  --module-path C:\javafx-jmods-21.0.10\jmods ^
+  --add-modules javafx.controls,javafx.fxml
