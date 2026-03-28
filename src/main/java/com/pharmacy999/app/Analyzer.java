@@ -90,10 +90,8 @@ public class Analyzer {
         Map<String, Double> pharmacyTotals = new HashMap<>();
         for (RowRecord rr : rows) {
 
-            String branch = rr.values()
-                .get("Филиал");
-            double profit = parseRuNumber(rr.values()
-                .get("Прибыль"));
+            String branch = rr.values().get("Филиал");
+            double profit = parseRuNumber(rr.values().get("Прибыль"));
 
             pharmacyTotals.merge(branch, profit, Double::sum);
         }
@@ -102,8 +100,7 @@ public class Analyzer {
 
         for (RowRecord rr : rows) {
             Map<String, String> newValues = new LinkedHashMap<>(rr.values());
-            String branch = rr.values()
-                .get("Филиал");
+            String branch = rr.values().get("Филиал");
 
             double profit = parseRuNumber(rr.values()
                 .get(PROFIT_HEADER));
@@ -123,10 +120,8 @@ public class Analyzer {
         Map<String, List<RowRecord>> rowsByBranch = new LinkedHashMap<>();
 
         for (RowRecord rr : outRows) {
-            String branch = rr.values()
-                .get("Филиал");
-            rowsByBranch.computeIfAbsent(branch, k -> new ArrayList<>())
-                .add(rr);
+            String branch = rr.values().get("Филиал");
+            rowsByBranch.computeIfAbsent(branch, k -> new ArrayList<>()).add(rr);
         }
 
         List<RowRecord> finalRows = new ArrayList<>(outRows.size());
@@ -134,10 +129,8 @@ public class Analyzer {
         for (List<RowRecord> branchRows : rowsByBranch.values()) {
 
             branchRows.sort((a, b) -> {
-                double va = parseDoubleSafe(a.values()
-                    .get("ДоляПрибыли"));
-                double vb = parseDoubleSafe(b.values()
-                    .get("ДоляПрибыли"));
+                double va = parseDoubleSafe(a.values().get("ДоляПрибыли"));
+                double vb = parseDoubleSafe(b.values().get("ДоляПрибыли"));
                 return Double.compare(vb, va); // descending inside one pharmacy
             });
 
@@ -166,8 +159,7 @@ public class Analyzer {
                 newValues.put("ABC", abc);
 
                 // Min-Max logic unchanged
-                double sales = parseRuNumber(rr.values()
-                    .get("Кол-во"));
+                double sales = parseRuNumber(rr.values().get("Кол-во"));
                 double minDouble = (sales / 30.0) * 3.0;
                 double maxDouble = (sales / 30.0) * 7.0;
 
