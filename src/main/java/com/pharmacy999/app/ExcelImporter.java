@@ -1,6 +1,5 @@
 package com.pharmacy999.app;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -45,7 +44,6 @@ public class ExcelImporter {
       throws IOException {
     List<RowRecord> out = new ArrayList<>();
     double totalProfit = 0.0;
-    double totalSales = 0.0;
 
     for (File f : files) {
       cb.onProgress(0, 1, "Reading " + f.getName() + "...");
@@ -69,7 +67,7 @@ public class ExcelImporter {
 
         totalProfit = parseRuNumber(getCellAsString(totalsRow.getCell(PROFIT_COL), evaluator));
 
-        for (int r = DATA_START_ROW_INDEX; r <= lastRow; r++) {
+        for (int r = DATA_START_ROW_INDEX; r < lastRow; r++) {
           Row row = sheet.getRow(r);
           if (row == null || isRelevantDataRowEmpty(row)) {
             continue;
@@ -101,7 +99,7 @@ public class ExcelImporter {
 
 
     }
-    return new ImportResult(out, totalProfit, totalSales);
+    return new ImportResult(out, totalProfit);
 
 
   }

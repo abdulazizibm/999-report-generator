@@ -1,6 +1,7 @@
 package com.pharmacy999.app;
 
-import java.util.Date;
+import static java.text.MessageFormat.format;
+
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -20,6 +21,7 @@ public class MainApp extends Application {
   private final ListView<String> fileList = new ListView<>();
   private final ProgressBar progressBar = new ProgressBar(0);
   private final Label statusLabel = new Label("Выберите Excel файлы для начала.");
+  private final String VERSION = "v1.1";
 
   @Override
   public void start(Stage stage) {
@@ -154,7 +156,7 @@ public class MainApp extends Application {
     root.setPadding(new Insets(12));
     fileList.setPrefHeight(200);
 
-    stage.setTitle("ABC - Min/Max Report Generator");
+    stage.setTitle(format("ABC - Min/Max Report Generator ({0})", VERSION));
     stage.setScene(new Scene(root, 720, 420));
     stage.show();
   }
