@@ -266,8 +266,8 @@ public class ReportWriter {
     style.cloneStyleFrom(createTextStyle(wb));
     style.setAlignment(HorizontalAlignment.RIGHT);
 
-    DataFormat df = wb.createDataFormat();
-    style.setDataFormat(df.getFormat("0.##"));
+    /*DataFormat df = wb.createDataFormat();
+    style.setDataFormat(df.getFormat("0"));*/
     return style;
   }
   private static CellStyle createFilledStyle(Workbook wb, byte[] rgb) {

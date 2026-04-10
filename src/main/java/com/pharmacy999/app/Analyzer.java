@@ -262,11 +262,11 @@ public class Analyzer {
                 PharmacySkuAggregate agg = byPharmacy.get(pharmacy);
 
                 if (agg == null) {
-                    outValues.put(aaColumn, "");
                     outValues.put(qtyColumn, "0");
+                    outValues.put(aaColumn, "Нет Продаж");
                 } else {
-                    outValues.put(aaColumn, agg.formatAbcSummary(files.size()));
                     outValues.put(qtyColumn, formatQty(agg.totalSales));
+                    outValues.put(aaColumn, agg.formatAbcSummary(files.size()));
                 }
             }
 
