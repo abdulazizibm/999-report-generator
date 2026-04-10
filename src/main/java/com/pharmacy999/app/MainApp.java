@@ -31,11 +31,13 @@ public class MainApp extends Application {
 
     RadioButton abcPerPharmacyRadio = new RadioButton("ABC по аптекам");
     RadioButton abcTotalRadio = new RadioButton("ABC по сети");
+    RadioButton abcTotalAggregate = new RadioButton("ABC 3 месяца");
 
 
     ToggleGroup modeGroup = new ToggleGroup();
     abcPerPharmacyRadio.setToggleGroup(modeGroup);
     abcTotalRadio.setToggleGroup(modeGroup);
+    abcTotalAggregate.setToggleGroup(modeGroup);
 
     // default selection
     abcPerPharmacyRadio.setSelected(true);
@@ -69,9 +71,17 @@ public class MainApp extends Application {
               new FileChooser.ExtensionFilter("Excel files (*.xlsx)", "*.xlsx")
           );
 
-      CalculationMode mode = abcPerPharmacyRadio.isSelected()
-          ? CalculationMode.ABC_PER_PHARMACY
-          : CalculationMode.ABC_TOTAL;
+      CalculationMode mode;
+
+      if(abcPerPharmacyRadio.isSelected()){
+        mode = CalculationMode.ABC_PER_PHARMACY;
+      }
+      else if(abcTotalRadio.isSelected()){
+        mode = CalculationMode.ABC_TOTAL;
+      }
+      else{
+        mode = CalculationMode.ABC_TOTAL_3_MONTHS;
+      }
 
       String fileName = selectedFiles.getFirst().getName();
       if(mode.equals(CalculationMode.ABC_PER_PHARMACY)){
@@ -89,6 +99,7 @@ public class MainApp extends Application {
       pickFilesBtn.setDisable(true);
       abcTotalRadio.setDisable(true);
       abcPerPharmacyRadio.setDisable(true);
+      abcTotalAggregate.setDisable(true);
 
       progressBar.setProgress(0);
       statusLabel.setText("Работаю…");
@@ -124,6 +135,7 @@ public class MainApp extends Application {
         runBtn.setDisable(false);
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
+        abcTotalAggregate.setDisable(false);
       });
 
       task.setOnFailed(ev -> {
@@ -138,6 +150,7 @@ public class MainApp extends Application {
         runBtn.setDisable(false);
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
+        abcTotalAggregate.setDisable(false);
       });
 
       new Thread(task, "report-task").start();
@@ -146,7 +159,7 @@ public class MainApp extends Application {
     VBox root = new VBox(10,
         new HBox(10, pickFilesBtn, runBtn),
         new Label("Режим анализа:"),
-        new HBox(16, abcPerPharmacyRadio, abcTotalRadio),
+        new HBox(16, abcPerPharmacyRadio, abcTotalRadio, abcTotalAggregate),
         new Label("Выбранные файлы:"),
         fileList,
         new Label("Статус:"),

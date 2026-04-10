@@ -1,19 +1,32 @@
 package com.pharmacy999.app;
 
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class Analyzer {
 
     private static final String PROFIT_HEADER = "Прибыль";
     private static final String OUTPUT_COLUMN = "ДоляПрибыли";
 
-    public static ReportModel computeTotal(List<RowRecord> rows, double totalProfit) {
+    private static final String PHARMACY_HEADER = "Филиал";
+    private static final String NAME_HEADER = "Наименование";
+    private static final String MANUFACTURER_HEADER = "Производитель";
+    private static final String QTY_HEADER = "Кол-во";
+    private static final String ABC_HEADER = "ABC";
+
+    public static List<RowRecord> computeTotal(List<RowRecord> rows, double totalProfit) {
         if (rows.isEmpty()) {
-            return new ReportModel(List.of());
+            return Collections.emptyList();
         }
 
         List<RowRecord> outRows = new ArrayList<>(rows.size());
@@ -81,11 +94,11 @@ public class Analyzer {
             outRows.set(i, new RowRecord(rr.sourceFile(), rr.rowNumber(), newValues));
         }
 
-        return new ReportModel(outRows);
+        return outRows;
     }
-    public static ReportModel computePerPharmacy(List<RowRecord> rows) {
+    public static List<RowRecord> computePerPharmacy(List<RowRecord> rows) {
         if (rows.isEmpty()) {
-            return new ReportModel(List.of());
+            return Collections.emptyList();
         }
         Map<String, Double> pharmacyTotals = new HashMap<>();
         for (RowRecord rr : rows) {
@@ -102,8 +115,7 @@ public class Analyzer {
             Map<String, String> newValues = new LinkedHashMap<>(rr.values());
             String branch = rr.values().get("Филиал");
 
-            double profit = parseRuNumber(rr.values()
-                .get(PROFIT_HEADER));
+            double profit = parseRuNumber(rr.values().get(PROFIT_HEADER));
             double pharmacyTotal = pharmacyTotals.getOrDefault(branch, 0.0);
             double ratio = 0.0;
 
@@ -173,8 +185,131 @@ public class Analyzer {
             }
 
         }
-        return new ReportModel(finalRows);
+        return finalRows;
     }
+    public static List<RowRecord> generateCore(List<List<RowRecord>> files){
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+
+        List<RowRecord> lastFile = files.get(files.size() - 1);
+
+        // Pharmacy order is derived from the last file first, then any missing pharmacies from older files.
+        LinkedHashSet<String> pharmacyNamesOrdered = new LinkedHashSet<>();
+        collectPharmacies(pharmacyNamesOrdered, lastFile);
+        for (List<RowRecord> file : files) {
+            collectPharmacies(pharmacyNamesOrdered, file);
+        }
+
+        List<String> pharmacies = new ArrayList<>(pharmacyNamesOrdered);
+
+        // Map pharmacy name -> 1-based output index
+        Map<String, Integer> pharmacyIndexMap = new LinkedHashMap<>();
+        for (int i = 0; i < pharmacies.size(); i++) {
+            pharmacyIndexMap.put(pharmacies.get(i), i + 1);
+        }
+
+        // SKU -> pharmacy -> aggregate
+        Map<SkuKey, Map<String, PharmacySkuAggregate>> data = new LinkedHashMap<>();
+
+        for (List<RowRecord> file : files) {
+            for (RowRecord row : file) {
+                Map<String, String> values = row.values();
+
+                String pharmacy = safeTrim(values.get(PHARMACY_HEADER));
+                String name = safeTrim(values.get(NAME_HEADER));
+                String manufacturer = safeTrim(values.get(MANUFACTURER_HEADER));
+                String abc = normalizeAbc(values.get(ABC_HEADER));
+                String salesString= values.get(QTY_HEADER);
+
+                if (name.isEmpty() && manufacturer.isEmpty()) {
+                    continue;
+                }
+                if (pharmacy.isEmpty()) {
+                    continue;
+                }
+
+                SkuKey skuKey = new SkuKey(name, manufacturer);
+
+                Map<String, PharmacySkuAggregate> byPharmacy =
+                    data.computeIfAbsent(skuKey, k -> new LinkedHashMap<>());
+
+                PharmacySkuAggregate agg =
+                    byPharmacy.computeIfAbsent(pharmacy, p -> new PharmacySkuAggregate());
+
+                agg.addAbc(abc);
+                agg.addSales(parseRuNumber(salesString));
+            }
+        }
+
+        // Build output rows
+        List<RowRecord> result = new ArrayList<>();
+        int outRowIndex = 0;
+
+        for (Map.Entry<SkuKey, Map<String, PharmacySkuAggregate>> entry : data.entrySet()) {
+            SkuKey sku = entry.getKey();
+            Map<String, PharmacySkuAggregate> byPharmacy = entry.getValue();
+
+            Map<String, String> outValues = new LinkedHashMap<>();
+            outValues.put(NAME_HEADER, sku.name());
+            outValues.put(MANUFACTURER_HEADER, sku.manufacturer());
+
+            for (String pharmacy : pharmacies) {
+                int idx = pharmacyIndexMap.get(pharmacy);
+                String aaColumn = "AA" + idx;
+                String qtyColumn = "A" + idx;
+
+                PharmacySkuAggregate agg = byPharmacy.get(pharmacy);
+
+                if (agg == null) {
+                    outValues.put(aaColumn, "");
+                    outValues.put(qtyColumn, "0");
+                } else {
+                    outValues.put(aaColumn, agg.formatAbcSummary(files.size()));
+                    outValues.put(qtyColumn, formatQty(agg.totalSales));
+                }
+            }
+
+            result.add(new RowRecord(null,outRowIndex++, outValues));
+        }
+
+        return result;
+    }
+
+    private static void collectPharmacies(Set<String> pharmacyNames, List<RowRecord> rows) {
+        for (RowRecord row : rows) {
+            String pharmacy = safeTrim(row.values().get(PHARMACY_HEADER));
+            if (!pharmacy.isEmpty()) {
+                pharmacyNames.add(pharmacy);
+            }
+        }
+    }
+    private static String safeTrim(String s) {
+        return s == null ? "" : s.trim();
+    }
+    private static String normalizeAbc(String raw) {
+        String s = safeTrim(raw).toUpperCase(Locale.ROOT);
+        return switch (s) {
+            case "A", "B", "C" -> s;
+            default -> "";
+        };
+    }
+
+    private static String formatQty(double value) {
+        /*if (Math.abs(value - Math.rint(value)) < 1e-9) {
+            return String.valueOf((long) Math.rint(value));
+        }
+        return String.valueOf(value).replace(".", ",");*/
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("ru", "RU"));
+        symbols.setDecimalSeparator(',');
+        symbols.setGroupingSeparator(' ');
+
+        DecimalFormat df = new DecimalFormat("0.##", symbols);
+        df.setRoundingMode(RoundingMode.HALF_UP);
+
+        return df.format(value);
+    }
+
 
     private static double parseRuNumber(String s) {
         if (s == null)

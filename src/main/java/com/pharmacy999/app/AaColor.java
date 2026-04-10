@@ -1,0 +1,19 @@
+package com.pharmacy999.app;
+
+public enum AaColor {
+  NONE,
+  DARK_GREEN,
+  GREEN,
+  LIGHT_GREEN,
+  LIGHTER_GREEN,
+  VERY_LIGHT_GREEN,
+
+  DARK_YELLOW,
+  YELLOW,
+  LIGHT_YELLOW,
+  LIGHTER_YELLOW,
+  VERY_LIGHT_YELLOW,
+
+  DARK_RED,
+  LIGHT_RED
+}

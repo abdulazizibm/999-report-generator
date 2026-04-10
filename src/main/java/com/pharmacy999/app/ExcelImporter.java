@@ -40,65 +40,61 @@ public class ExcelImporter {
   private static final String PROFIT_HEADER = "Прибыль";
 
 
-  public ImportResult readAll(List<File> files, ProgressCallback cb)
+  public ImportResult readAll(File f, ProgressCallback cb)
       throws IOException {
     List<RowRecord> out = new ArrayList<>();
     double totalProfit = 0.0;
 
-    for (File f : files) {
-      cb.onProgress(0, 1, "Reading " + f.getName() + "...");
+    cb.onProgress(0, 1, "Reading " + f.getName() + "...");
 
-      try (FileInputStream in = new FileInputStream(f);
-          Workbook wb = new XSSFWorkbook(in)) {
+    try (FileInputStream in = new FileInputStream(f);
+        Workbook wb = new XSSFWorkbook(in)) {
 
+      Sheet sheet = wb.getSheetAt(0);
+      FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
 
-        Sheet sheet = wb.getSheetAt(0);
-        FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+      validateHeaderRow(sheet, f.getName());
+      int lastRow = sheet.getLastRowNum();
+      String currentBranch = "";
 
-        validateHeaderRow(sheet, f.getName());
-        int lastRow = sheet.getLastRowNum();
-        String currentBranch = "";
-
-        // last row contains totals
-        Row totalsRow = sheet.getRow(lastRow);
-        if (totalsRow == null) {
-          throw new IllegalArgumentException("Totals row not found in " + f.getName());
-        }
-
-        totalProfit = parseRuNumber(getCellAsString(totalsRow.getCell(PROFIT_COL), evaluator));
-
-        for (int r = DATA_START_ROW_INDEX; r < lastRow; r++) {
-          Row row = sheet.getRow(r);
-          if (row == null || isRelevantDataRowEmpty(row)) {
-            continue;
-          }
-
-          String branch = getCellAsString(row.getCell(BRANCH_COL));
-          if (!branch.isEmpty()) {
-            currentBranch = branch;
-          } else {
-            // In case branch cells are blank within a grouped block,
-            // keep using the last seen branch name.
-            branch = currentBranch;
-          }
-
-          Map<String, String> values = new LinkedHashMap<>();
-          values.put(BRANCH_HEADER, branch);
-          values.put(PRODUCT_HEADER, getCellAsString(row.getCell(PRODUCT_COL)));
-          values.put(MANUFACTURER_HEADER, getCellAsString(row.getCell(MANUFACTURER_COL)));
-          values.put(SALES_HEADER, getCellAsString(row.getCell(SALES_COL)));
-          values.put(SUM_HEADER, getCellAsString(row.getCell(SUM_COL)));
-          values.put(INCOME_SUM_HEADER, getCellAsString(row.getCell(INCOME_SUM_COL)));
-          values.put(DISCOUNT_SUM_HEADER, getCellAsString(row.getCell(DISCOUNT_SUM_COL)));
-          values.put(PROFIT_HEADER, getCellAsString(row.getCell(PROFIT_COL)));
-
-          out.add(new RowRecord(f.getName(), r + 1, values));
-
-        }
+      // last row contains totals
+      Row totalsRow = sheet.getRow(lastRow);
+      if (totalsRow == null) {
+        throw new IllegalArgumentException("Totals row not found in " + f.getName());
       }
 
+      totalProfit = parseRuNumber(getCellAsString(totalsRow.getCell(PROFIT_COL), evaluator));
 
+      for (int r = DATA_START_ROW_INDEX; r < lastRow; r++) {
+        Row row = sheet.getRow(r);
+        if (row == null || isRelevantDataRowEmpty(row)) {
+          continue;
+        }
+
+        String branch = getCellAsString(row.getCell(BRANCH_COL));
+        if (!branch.isEmpty()) {
+          currentBranch = branch;
+        } else {
+          // In case branch cells are blank within a grouped block,
+          // keep using the last seen branch name.
+          branch = currentBranch;
+        }
+
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put(BRANCH_HEADER, branch);
+        values.put(PRODUCT_HEADER, getCellAsString(row.getCell(PRODUCT_COL)));
+        values.put(MANUFACTURER_HEADER, getCellAsString(row.getCell(MANUFACTURER_COL)));
+        values.put(SALES_HEADER, getCellAsString(row.getCell(SALES_COL)));
+        values.put(SUM_HEADER, getCellAsString(row.getCell(SUM_COL)));
+        values.put(INCOME_SUM_HEADER, getCellAsString(row.getCell(INCOME_SUM_COL)));
+        values.put(DISCOUNT_SUM_HEADER, getCellAsString(row.getCell(DISCOUNT_SUM_COL)));
+        values.put(PROFIT_HEADER, getCellAsString(row.getCell(PROFIT_COL)));
+
+        out.add(new RowRecord(f.getName(), r + 1, values));
+
+      }
     }
+
     return new ImportResult(out, totalProfit);
 
 
@@ -147,9 +143,13 @@ public class ExcelImporter {
     return dataFormatter.formatCellValue(cell)
         .trim();
   }
+
   private String getCellAsString(Cell cell, FormulaEvaluator evaluator) {
-    if (cell == null) return "";
-    return dataFormatter.formatCellValue(cell, evaluator).trim();
+    if (cell == null) {
+      return "";
+    }
+    return dataFormatter.formatCellValue(cell, evaluator)
+        .trim();
   }
 
   private double parseRuNumber(String s) {
