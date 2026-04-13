@@ -184,16 +184,20 @@ public class ReportWriter {
       // A block
       case "Ядро A" -> AaColor.DARK_GREEN;
       case "A2/B1" -> AaColor.GREEN;
+      case "A2/C1" -> AaColor.A_GREEN_MID;
       case "A1/B2" -> AaColor.LIGHT_GREEN;
       case "A2" -> AaColor.LIGHTER_GREEN;
-      case "A1/B1" -> AaColor.VERY_LIGHT_GREEN;
+      case "A1/B1/C1" -> AaColor.LIGHTERRR_GREEN;
+      case "A1/B1", "A1/C2" -> AaColor.VERY_LIGHT_GREEN;
+      case "A1", "A1/C1" -> AaColor.ULTRA_LIGHT_GREEN;
 
       // B block
       case "Ядро B" -> AaColor.DARK_YELLOW;
       case "B2/C1" -> AaColor.YELLOW;
       case "B1/C2" -> AaColor.LIGHT_YELLOW;
-      case "B1", "B2" -> AaColor.LIGHTER_YELLOW;
-      case "B1/C1" -> AaColor.VERY_LIGHT_YELLOW;
+      case "B2" -> AaColor.LIGHTER_YELLOW;
+      case "B1/C1" -> AaColor.MID_VERY_LIGHT_YELLOW;
+      case "B1" -> AaColor.VERY_LIGHT_YELLOW;
 
       // C block
       case "Ядро C" -> AaColor.DARK_RED;
@@ -285,14 +289,18 @@ public class ReportWriter {
 
     styles.put(AaColor.DARK_GREEN, createFilledStyle(wb, new byte[]{0x00, 0x61, 0x00}));
     styles.put(AaColor.GREEN, createFilledStyle(wb, new byte[]{0x00, (byte) 0xB0, 0x50}));
+    styles.put(AaColor.A_GREEN_MID, createFilledStyle(wb,new byte[]{(byte) 0x66, (byte) 0xC2, (byte) 0x66}));
     styles.put(AaColor.LIGHT_GREEN, createFilledStyle(wb, new byte[]{(byte) 0x92, (byte) 0xD0, 0x50}));
     styles.put(AaColor.LIGHTER_GREEN, createFilledStyle(wb, new byte[]{(byte) 0xC6, (byte) 0xE0, (byte) 0xB4}));
+    styles.put(AaColor.LIGHTERRR_GREEN, createFilledStyle(wb, new byte[]{(byte) 0xD6, (byte) 0xEB, (byte) 0xC8}));
     styles.put(AaColor.VERY_LIGHT_GREEN, createFilledStyle(wb, new byte[]{(byte) 0xE2, (byte) 0xF0, (byte) 0xD9}));
+    styles.put(AaColor.ULTRA_LIGHT_GREEN, createFilledStyle(wb, new byte[]{(byte) 0xF2, (byte) 0xFA, (byte) 0xF0}));
 
     styles.put(AaColor.DARK_YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xBF, (byte) 0x8F, 0x00}));
     styles.put(AaColor.YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xFF, (byte) 0xC0, 0x00}));
     styles.put(AaColor.LIGHT_YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xFF, (byte) 0xD9, 0x66}));
     styles.put(AaColor.LIGHTER_YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xFF, (byte) 0xEB, (byte) 0x9C}));
+    styles.put(AaColor.MID_VERY_LIGHT_YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xFF, (byte) 0xEE, (byte) 0xB8}));
     styles.put(AaColor.VERY_LIGHT_YELLOW, createFilledStyle(wb, new byte[]{(byte) 0xFF, (byte) 0xF2, (byte) 0xCC}));
 
     styles.put(AaColor.DARK_RED, createFilledStyle(wb, new byte[]{(byte) 0xC0, 0x00, 0x00}));
