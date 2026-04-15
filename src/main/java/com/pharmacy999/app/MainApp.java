@@ -31,13 +31,15 @@ public class MainApp extends Application {
 
     RadioButton abcPerPharmacyRadio = new RadioButton("ABC по аптекам");
     RadioButton abcTotalRadio = new RadioButton("ABC по сети");
-    RadioButton abcTotalAggregate = new RadioButton("ABC 3 месяца");
+    RadioButton abcTotalAggregate = new RadioButton("ABC 3 месяца (Палитра)");
+    RadioButton abcAndStock = new RadioButton("ABC + Остаток");
 
 
     ToggleGroup modeGroup = new ToggleGroup();
     abcPerPharmacyRadio.setToggleGroup(modeGroup);
     abcTotalRadio.setToggleGroup(modeGroup);
     abcTotalAggregate.setToggleGroup(modeGroup);
+    abcAndStock.setToggleGroup(modeGroup);
 
     // default selection
     abcPerPharmacyRadio.setSelected(true);
@@ -51,14 +53,15 @@ public class MainApp extends Application {
           );
       List<File> files = chooser.showOpenMultipleDialog(stage);
       if (files != null && !files.isEmpty()) {
-        selectedFiles.clear();
-        selectedFiles.addAll(files);
-        fileList.getItems()
-            .setAll(selectedFiles.stream()
-                .map(File::getAbsolutePath)
-                .toList());
-        statusLabel.setText("Выбраны " + selectedFiles.size() + " файлы.");
-        runBtn.setDisable(false);
+
+        for (File file : files) {
+          if (!selectedFiles.contains(file)) {
+            selectedFiles.add(file);
+            fileList.getItems().add(file.getAbsolutePath());
+          }
+        }
+        statusLabel.setText("Выбраны " + selectedFiles.size() + " файл(а).");
+        runBtn.setDisable(selectedFiles.isEmpty());
       }
     });
 
@@ -79,8 +82,11 @@ public class MainApp extends Application {
       else if(abcTotalRadio.isSelected()){
         mode = CalculationMode.ABC_TOTAL;
       }
-      else{
+      else if(abcTotalAggregate.isSelected()){
         mode = CalculationMode.ABC_TOTAL_3_MONTHS;
+      }
+      else{
+        mode = CalculationMode.ABC_and_STOCK;
       }
 
       String fileName = selectedFiles.getFirst().getName();
@@ -100,6 +106,7 @@ public class MainApp extends Application {
       abcTotalRadio.setDisable(true);
       abcPerPharmacyRadio.setDisable(true);
       abcTotalAggregate.setDisable(true);
+      abcAndStock.setDisable(true);
 
       progressBar.setProgress(0);
       statusLabel.setText("Работаю…");
@@ -136,6 +143,7 @@ public class MainApp extends Application {
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
         abcTotalAggregate.setDisable(false);
+        abcAndStock.setDisable(false);
       });
 
       task.setOnFailed(ev -> {
@@ -151,6 +159,7 @@ public class MainApp extends Application {
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
         abcTotalAggregate.setDisable(false);
+        abcAndStock.setDisable(false);
       });
 
       new Thread(task, "report-task").start();
@@ -159,7 +168,7 @@ public class MainApp extends Application {
     VBox root = new VBox(10,
         new HBox(10, pickFilesBtn, runBtn),
         new Label("Режим анализа:"),
-        new HBox(16, abcPerPharmacyRadio, abcTotalRadio, abcTotalAggregate),
+        new HBox(16, abcPerPharmacyRadio, abcTotalRadio, abcTotalAggregate, abcAndStock),
         new Label("Выбранные файлы:"),
         fileList,
         new Label("Статус:"),

@@ -132,7 +132,7 @@ public class ReportWriter {
         if (isAaColumn(columnName)) {
           cell.setCellValue(value);
           cell.setCellStyle(aaStyles.getOrDefault(resolveAaColor(value), textStyle));
-        } else if (isQtyColumn(columnName)) {
+        } else if (isQtyColumn(columnName) || isStockColumn(columnName)) {
           Double numeric = tryParseNumber(value);
           if (numeric != null) {
             cell.setCellValue(numeric);
@@ -216,6 +216,9 @@ public class ReportWriter {
   private static boolean isQtyColumn(String columnName) {
     return columnName != null && columnName.matches("^A\\d+$");
   }
+  private static boolean isStockColumn(String columnName){
+    return columnName != null && columnName.toLowerCase(Locale.ROOT).contains("остаток");
+  }
 
   private static Double tryParseNumber(String raw) {
     if (raw == null) {
@@ -270,8 +273,6 @@ public class ReportWriter {
     style.cloneStyleFrom(createTextStyle(wb));
     style.setAlignment(HorizontalAlignment.RIGHT);
 
-    /*DataFormat df = wb.createDataFormat();
-    style.setDataFormat(df.getFormat("0"));*/
     return style;
   }
   private static CellStyle createFilledStyle(Workbook wb, byte[] rgb) {
@@ -322,11 +323,6 @@ public class ReportWriter {
         || "Снабжение на 7 дней".equals(key);
   }
 
-  private boolean isAXcolumn(String key) {
-    List<String> list = List.of("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11",
-        "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20");
-    return list.contains(key);
-  }
 
   private double parseRuNumber(String s) {
     if (s == null) {

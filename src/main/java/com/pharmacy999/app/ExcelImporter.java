@@ -40,7 +40,7 @@ public class ExcelImporter {
   private static final String PROFIT_HEADER = "Прибыль";
 
 
-  public ImportResult readAll(File f, ProgressCallback cb)
+  public ImportResult readSalesFile(File f, ProgressCallback cb)
       throws IOException {
     List<RowRecord> out = new ArrayList<>();
     double totalProfit = 0.0;
@@ -97,7 +97,97 @@ public class ExcelImporter {
 
     return new ImportResult(out, totalProfit);
 
+  }
+  public List<RowRecord> readABCandStockFile(File f, ProgressCallback cb) throws IOException {
+    List<RowRecord> result = new ArrayList<>();
 
+    cb.onProgress(0, 1, "Reading " + f.getName() + "...");
+
+    try (FileInputStream in = new FileInputStream(f);
+        Workbook wb = new XSSFWorkbook(in)) {
+
+      Sheet sheet = wb.getSheetAt(0);
+
+      Iterator<Row> rowIterator = sheet.iterator();
+      if (!rowIterator.hasNext()) {
+        return result;
+      }
+
+      // --- Read header row --
+      int headerRowIndex = detectHeaderRowIndex(sheet);
+      Row headerRow = sheet.getRow(headerRowIndex);
+      List<String> headers = readHeaders(headerRow);
+
+      int rowIndex = 0;
+
+      // --- Read data rows ---
+      for (int r = headerRowIndex + 1; r <= sheet.getLastRowNum(); r++) {
+        Row row = sheet.getRow(r);
+        if (row == null) {
+          continue;
+        }
+
+        Map<String, String> values = new LinkedHashMap<>();
+
+        for (int c = 0; c < headers.size(); c++) {
+          String header = headers.get(c);
+          Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+          //String value = readCell(cell);
+          String value = getCellAsString(cell);
+          values.put(header, value);
+        }
+
+        // skip completely empty rows
+        if (isEmptyRow(values)) {
+          continue;
+        }
+
+        result.add(new RowRecord("sourceFileName", rowIndex++, values));
+      }
+    }
+
+    return result;
+  }
+
+
+  private List<String> readHeaders(Row headerRow) {
+    List<String> headers = new ArrayList<>();
+
+    int lastCell = headerRow.getLastCellNum();
+    for (int c = 0; c < lastCell; c++) {
+      Cell cell = headerRow.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+      //String header = readCell(cell);
+      String header = getCellAsString(cell);
+
+      if (header.isBlank()) {
+        header = "COLUMN_" + c; // fallback
+      }
+
+      headers.add(header.trim());
+    }
+
+    return headers;
+  }
+  private static int detectHeaderRowIndex(Sheet sheet) {
+    Row firstRow = sheet.getRow(0);
+    if (firstRow == null) {
+      return 0;
+    }
+    Cell cell = firstRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+    if (cell == null) {
+      return 0;
+    }
+    DataFormatter formatter = new DataFormatter();
+    String firstRowText = formatter.formatCellValue(cell).toLowerCase(Locale.ROOT);
+
+
+    if (firstRowText.contains("оборотная ведомость")
+        && firstRowText.contains("горизонтальная")) {
+      return 1;
+    }
+
+    return 0;
   }
 
   private void validateHeaderRow(Sheet sheet, String fileName) {
@@ -142,6 +232,14 @@ public class ExcelImporter {
     }
     return dataFormatter.formatCellValue(cell)
         .trim();
+  }
+  private static boolean isEmptyRow(Map<String, String> values) {
+    for (String v : values.values()) {
+      if (v != null && !v.isBlank()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private String getCellAsString(Cell cell, FormulaEvaluator evaluator) {
