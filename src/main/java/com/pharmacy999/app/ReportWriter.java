@@ -46,7 +46,7 @@ public class ReportWriter {
     // union headers across all rows (for PoC)
     LinkedHashSet<String> headers = new LinkedHashSet<>();
     for (RowRecord rr : normalizedRows) {
-      headers.addAll(rr.values()
+      headers.addAll(rr.headersToValues()
           .keySet());
     }
 
@@ -63,7 +63,7 @@ public class ReportWriter {
       Row row = s.createRow(r++);
       for (int i = 0; i < headerList.size(); i++) {
         String key = headerList.get(i);
-        String value = rr.values()
+        String value = rr.headersToValues()
             .getOrDefault(key, "");
         Cell cell = row.createCell(i);
 
@@ -102,7 +102,7 @@ public class ReportWriter {
       return;
     }
 
-    List<String> headers = new ArrayList<>(outputRows.get(0).values().keySet());
+    List<String> headers = new ArrayList<>(outputRows.get(0).headersToValues().keySet());
 
     CellStyle headerStyle = createHeaderStyle(wb);
     CellStyle textStyle = createTextStyle(wb);
@@ -124,7 +124,7 @@ public class ReportWriter {
 
       for (int c = 0; c < headers.size(); c++) {
         String columnName = headers.get(c);
-        String rawValue = rr.values().getOrDefault(columnName, "");
+        String rawValue = rr.headersToValues().getOrDefault(columnName, "");
         String value = rawValue == null ? "" : rawValue.trim();
 
         Cell cell = row.createCell(c);

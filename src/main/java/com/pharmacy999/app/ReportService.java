@@ -59,38 +59,47 @@ public class ReportService {
 
     }
 
-    public List<RowRecord> generateReport3(List<File> inputs, ProgressCallback cb)
+    public List<RowRecord> generateReport3(List<File> files, ProgressCallback cb)
         throws IOException {
         ExcelImporter importer = new ExcelImporter();
-        List<List<RowRecord>> listOfRows = new ArrayList<>();
+        List<List<RowRecord>> salesFileRows = new ArrayList<>();
+        List<RowRecord> stockRows = new ArrayList<>();
 
-        for(File input: inputs){
-            ImportResult res = importer.readSalesFile(input, (done, total, msg) -> cb.onProgress(done, total, msg));
-            List<RowRecord> rows = Analyzer.computePerPharmacy(res.rows());
-            listOfRows.add(rows);
+        for(File file: files){
+            String fileName = file.getName().toLowerCase(Locale.ROOT);
+
+            if(!fileName.contains("оборотная_ведомость_горизонтальная")){
+                ImportResult res = importer.readSalesFile(file, (done, total, msg) -> cb.onProgress(done, total, msg));
+                List<RowRecord> rows = Analyzer.computePerPharmacy(res.rows());
+                salesFileRows.add(rows);
+            }
+            else{
+                stockRows = importer.readABCandStockFile(file, (done, total, msg) -> cb.onProgress(done, total, msg));
+            }
+
         }
-        return Analyzer.generateCore(listOfRows);
+        return Analyzer.generateCore(salesFileRows, stockRows);
 
     }
     public List<RowRecord> generateReport4(List<File> inputs, ProgressCallback cb)
         throws IOException {
         ExcelImporter importer = new ExcelImporter();
-        List<RowRecord> abcFile = new ArrayList<>();
-        List<RowRecord> stockFile = new ArrayList<>(); // оборотная ведомость горизонтальная
+        List<RowRecord> abcRows = new ArrayList<>();
+        List<RowRecord> stockRows = new ArrayList<>(); // оборотная ведомость горизонтальная
 
 
         for(File input: inputs){
             String fileName = input.getName().toLowerCase(Locale.ROOT);
             if(fileName.contains("оборотная_ведомость_горизонтальная")){
-                stockFile = importer.readABCandStockFile(input, (done, total, msg) -> cb.onProgress(done, total, msg));
+                stockRows = importer.readABCandStockFile(input, (done, total, msg) -> cb.onProgress(done, total, msg));
             }
             else{
-                abcFile = importer.readABCandStockFile(input, (done, total, msg) -> cb.onProgress(done, total, msg));
+                abcRows = importer.readABCandStockFile(input, (done, total, msg) -> cb.onProgress(done, total, msg));
 
             }
 
         }
-        return AbcStockAdder.addStockColumns(abcFile, stockFile);
+        return AbcStockAdder.addStockColumns(abcRows, stockRows);
 
     }
 }

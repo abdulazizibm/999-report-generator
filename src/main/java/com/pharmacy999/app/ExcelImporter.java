@@ -70,14 +70,10 @@ public class ExcelImporter {
         if (row == null || isRelevantDataRowEmpty(row)) {
           continue;
         }
-
         String branch = getCellAsString(row.getCell(BRANCH_COL));
-        if (!branch.isEmpty()) {
-          currentBranch = branch;
-        } else {
-          // In case branch cells are blank within a grouped block,
-          // keep using the last seen branch name.
-          branch = currentBranch;
+
+        if (isClosedPharmacy(branch)) {
+          continue;
         }
 
         Map<String, String> values = new LinkedHashMap<>();
@@ -90,7 +86,7 @@ public class ExcelImporter {
         values.put(DISCOUNT_SUM_HEADER, getCellAsString(row.getCell(DISCOUNT_SUM_COL)));
         values.put(PROFIT_HEADER, getCellAsString(row.getCell(PROFIT_COL)));
 
-        out.add(new RowRecord(f.getName(), r + 1, values));
+        out.add(new RowRecord(values));
 
       }
     }
@@ -98,6 +94,7 @@ public class ExcelImporter {
     return new ImportResult(out, totalProfit);
 
   }
+
   public List<RowRecord> readABCandStockFile(File f, ProgressCallback cb) throws IOException {
     List<RowRecord> result = new ArrayList<>();
 
@@ -143,7 +140,7 @@ public class ExcelImporter {
           continue;
         }
 
-        result.add(new RowRecord("sourceFileName", rowIndex++, values));
+        result.add(new RowRecord(values));
       }
     }
 
@@ -169,6 +166,7 @@ public class ExcelImporter {
 
     return headers;
   }
+
   private static int detectHeaderRowIndex(Sheet sheet) {
     Row firstRow = sheet.getRow(0);
     if (firstRow == null) {
@@ -180,7 +178,6 @@ public class ExcelImporter {
     }
     DataFormatter formatter = new DataFormatter();
     String firstRowText = formatter.formatCellValue(cell).toLowerCase(Locale.ROOT);
-
 
     if (firstRowText.contains("оборотная ведомость")
         && firstRowText.contains("горизонтальная")) {
@@ -233,6 +230,7 @@ public class ExcelImporter {
     return dataFormatter.formatCellValue(cell)
         .trim();
   }
+
   private static boolean isEmptyRow(Map<String, String> values) {
     for (String v : values.values()) {
       if (v != null && !v.isBlank()) {
@@ -267,5 +265,16 @@ public class ExcelImporter {
     } catch (NumberFormatException e) {
       return Double.NaN;
     }
+  }
+
+  private boolean isClosedPharmacy(String name) {
+    String sanitized = name.trim();
+    return "Аптека №013".equalsIgnoreCase(sanitized) ||
+        "Аптека №005 (Гунча)".equalsIgnoreCase(sanitized) ||
+        "Аптека №012 (Ялангач)".equalsIgnoreCase(sanitized) ||
+        "Аптека №019 (Ц-1)".equalsIgnoreCase(sanitized) ||
+        "Аптека №013 (Шифонур)".equalsIgnoreCase(sanitized);
+
+
   }
 }
