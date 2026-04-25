@@ -13,8 +13,7 @@ public class AbcStockAdder {
   private static final String DRUG_NAME_HEADER = "Наименование";
   private static final String MANUFACTURER_HEADER = "Производитель";
   private static final String END_STOCK_HEADER = "Конечный Остаток";
-  private static final String START_STOCK_HEADER = "Начальный Остаток";
-  private static final Pattern A_COLUMN_PATTERN = Pattern.compile("^A(\\d+)$");
+  private static final Pattern TURNOVER_COLUMN_PATTERN = Pattern.compile("^Оборачиваемость A(\\d+)$");
 
   /**
    * \\s+ one or more spaces
@@ -43,11 +42,11 @@ public class AbcStockAdder {
     for (RowRecord abcRow : abcRows) {
       Map<String, String> headersToValues = abcRow.headersToValues();
 
-      String name = safeTrim(headersToValues.get(DRUG_NAME_HEADER));
+      String drugName = safeTrim(headersToValues.get(DRUG_NAME_HEADER));
       String manufacturer = safeTrim(headersToValues.get(MANUFACTURER_HEADER));
-      SkuKey skuKey = new SkuKey(name, manufacturer);
+      SkuKey skuKey = new SkuKey(drugName, manufacturer);
 
-      // key -> pharmacy number, value -> stock number of a drug on current row
+      // key -> pharmacy number, value -> stock number of a drug on a current row
       Map<Integer, String> pharmacyToStock =
           stockBySkuAndPharmacy.getOrDefault(skuKey, Collections.emptyMap());
 
@@ -59,65 +58,11 @@ public class AbcStockAdder {
 
         out.put(columnName, value);
 
-        Integer pharmacyNumber = extractPharmacyNumberFromAColumn(columnName);
+        Integer pharmacyNumber = extractPharmacyNumberFromTurnOverColumn(columnName);
         if (pharmacyNumber != null) {
           String stockColumnName = "Остаток A" + pharmacyNumber;
           String stockValue = pharmacyToStock.getOrDefault(pharmacyNumber, "-1");
           out.put(stockColumnName, stockValue);
-        }
-      }
-
-      result.add(new RowRecord( out));
-    }
-
-    return result;
-  }
-  public static List<RowRecord> addTurnoverColumns(List<RowRecord> abcRows, List<RowRecord> stockRows) {
-    List<RowRecord> result = new ArrayList<>();
-
-    if (abcRows == null || abcRows.isEmpty()) {
-      return List.of();
-    }
-    Map<SkuKey, Map<Integer, String>> endStockBySkuAndPharmacy = buildDataLookup(stockRows, END_STOCK_HEADER);
-    Map<SkuKey, Map<Integer, String>> startStockBySkuAndPharmacy = buildDataLookup(stockRows, START_STOCK_HEADER);
-
-    for (RowRecord abcRow : abcRows) {
-      Map<String, String> headersToValues = abcRow.headersToValues();
-
-      String name = safeTrim(headersToValues.get(DRUG_NAME_HEADER));
-      String manufacturer = safeTrim(headersToValues.get(MANUFACTURER_HEADER));
-      SkuKey skuKey = new SkuKey(name, manufacturer);
-
-      // key -> pharmacy number, value -> stock number of a drug on current row
-      Map<Integer, String> pharmacyToStartStock =
-          startStockBySkuAndPharmacy.getOrDefault(skuKey, Collections.emptyMap());
-      Map<Integer, String> pharmacyToEndStock =
-          endStockBySkuAndPharmacy.getOrDefault(skuKey, Collections.emptyMap());
-
-      Map<String, String> out = new LinkedHashMap<>();
-
-      for (Map.Entry<String, String> entry : headersToValues.entrySet()) {
-        String columnName = entry.getKey();
-        String value = entry.getValue();
-
-        out.put(columnName, value);
-
-        Integer pharmacyNumber = extractPharmacyNumberFromAColumn(columnName);
-        if (pharmacyNumber != null) {
-          String stockColumnName = "Оборачиваемость A" + pharmacyNumber;
-          String startStockValue = pharmacyToStartStock.getOrDefault(pharmacyNumber, "-1");
-          String endStockValue = pharmacyToEndStock.getOrDefault(pharmacyNumber, "-1");
-
-          double startStock = parseRuNumber(startStockValue);
-          double endStock = parseRuNumber(endStockValue);
-          double middleStock = (startStock + endStock) / 2;
-
-          double sales = parseRuNumber(entry.getValue());
-          double salesPerDay = sales / 90;
-
-          int turnOver = (int) Math.round(middleStock / salesPerDay);
-
-          out.put(stockColumnName, String.valueOf(turnOver));
         }
       }
 
@@ -202,12 +147,12 @@ public class AbcStockAdder {
   /**
    * Detects A1, A2, A5... and returns the pharmacy number.
    */
-  private static Integer extractPharmacyNumberFromAColumn(String columnName) {
+  private static Integer extractPharmacyNumberFromTurnOverColumn(String columnName) {
     if (columnName == null) {
       return null;
     }
 
-    Matcher m = A_COLUMN_PATTERN.matcher(columnName.trim());
+    Matcher m = TURNOVER_COLUMN_PATTERN.matcher(columnName.trim());
     if (!m.matches()) {
       return null;
     }
