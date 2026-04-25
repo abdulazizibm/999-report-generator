@@ -43,7 +43,7 @@ public class ExcelImporter {
   public ImportResult readSalesFile(File f, ProgressCallback cb)
       throws IOException {
     List<RowRecord> out = new ArrayList<>();
-    double totalProfit = 0.0;
+    double totalProfit;
 
     cb.onProgress(0, 1, "Reading " + f.getName() + "...");
 
@@ -179,8 +179,7 @@ public class ExcelImporter {
     DataFormatter formatter = new DataFormatter();
     String firstRowText = formatter.formatCellValue(cell).toLowerCase(Locale.ROOT);
 
-    if (firstRowText.contains("оборотная ведомость")
-        && firstRowText.contains("горизонтальная")) {
+    if (firstRowText.contains("оборотная ведомость") && firstRowText.contains("горизонтальная")) {
       return 1;
     }
 
