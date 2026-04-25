@@ -186,22 +186,24 @@ public class ReportWriter {
       case "A2/B1" -> AaColor.GREEN;
       case "A2/C1" -> AaColor.A_GREEN_MID;
       case "A1/B2" -> AaColor.LIGHT_GREEN;
-      case "A2" -> AaColor.LIGHTER_GREEN;
+      case "A2", "A2/F1 ⚠" -> AaColor.LIGHTER_GREEN;
       case "A1/B1/C1" -> AaColor.LIGHTERRR_GREEN;
       case "A1/B1", "A1/C2" -> AaColor.VERY_LIGHT_GREEN;
-      case "A1", "A1/C1" -> AaColor.ULTRA_LIGHT_GREEN;
+      case "A1", "A1/C1", "A1/F1 ⚠", "A1/F2 ⚠" -> AaColor.ULTRA_LIGHT_GREEN;
 
       // B block
       case "Ядро B" -> AaColor.DARK_YELLOW;
       case "B2/C1" -> AaColor.YELLOW;
       case "B1/C2" -> AaColor.LIGHT_YELLOW;
-      case "B2" -> AaColor.LIGHTER_YELLOW;
-      case "B1/C1" -> AaColor.MID_VERY_LIGHT_YELLOW;
+      case "B2", "B2/F1 ⚠" -> AaColor.LIGHTER_YELLOW;
+      case "B1/C1", "B1/C1/F1 ⚠", "B1/F1 ⚠", "B1/F2 ⚠" -> AaColor.MID_VERY_LIGHT_YELLOW;
       case "B1" -> AaColor.VERY_LIGHT_YELLOW;
 
       // C block
       case "Ядро C" -> AaColor.DARK_RED;
-      case "C1", "C2" -> AaColor.LIGHT_RED;
+      case "C1", "C2", "C1/F1 ⚠", "C1/F2 ⚠", "C2/F1 ⚠" -> AaColor.LIGHT_RED;
+
+      case "Ядро F ⚠" -> AaColor.BLACK;
 
       default -> AaColor.NONE;
     };
@@ -282,6 +284,21 @@ public class ReportWriter {
     style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
     return style;
   }
+  private static CellStyle createBlackStyle(Workbook wb) {
+    XSSFCellStyle style = (XSSFCellStyle) wb.createCellStyle();
+    style.cloneStyleFrom(createTextStyle(wb));
+
+    // Background
+    style.setFillForegroundColor(new XSSFColor(new byte[]{0, 0, 0}, null));
+    style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+    // Font (WHITE)
+    Font font = wb.createFont();
+    font.setColor(IndexedColors.WHITE.getIndex());
+    style.setFont(font);
+
+    return style;
+  }
 
   private static Map<AaColor, CellStyle> createAaStyles(Workbook wb) {
     Map<AaColor, CellStyle> styles = new EnumMap<>(AaColor.class);
@@ -306,6 +323,8 @@ public class ReportWriter {
 
     styles.put(AaColor.DARK_RED, createFilledStyle(wb, new byte[]{(byte) 0xC0, 0x00, 0x00}));
     styles.put(AaColor.LIGHT_RED, createFilledStyle(wb, new byte[]{(byte) 0xF4, (byte) 0xCC, (byte) 0xCC}));
+
+    styles.put(AaColor.BLACK, createBlackStyle(wb));
 
     return styles;
   }

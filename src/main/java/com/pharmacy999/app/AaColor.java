@@ -19,5 +19,7 @@ public enum AaColor {
   VERY_LIGHT_YELLOW,
 
   DARK_RED,
-  LIGHT_RED
+  LIGHT_RED,
+
+  BLACK
 }
