@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 public class Analyzer {
 
   private static final String PROFIT_HEADER = "Прибыль";
-  private static final String OUTPUT_COLUMN = "ДоляПрибыли";
+  private static final String RATIO_COLUMN = "ДоляПрибыли";
 
   private static final String PHARMACY_HEADER = "Филиал";
   private static final String NAME_HEADER = "Наименование";
@@ -42,14 +42,15 @@ public class Analyzer {
     for (RowRecord rr : rows) {
       Map<String, String> newValues = new LinkedHashMap<>(rr.headersToValues());
 
-      double profit = parseRuNumber(rr.headersToValues().get(PROFIT_HEADER));
+      double profit = parseRuNumber(rr.headersToValues()
+          .get(PROFIT_HEADER));
       double ratio = 0.0;
 
       if (!Double.isNaN(totalProfit) && totalProfit != 0.0) {
         ratio = profit / totalProfit;
       }
 
-      newValues.put(OUTPUT_COLUMN, format(ratio));
+      newValues.put(RATIO_COLUMN, format(ratio));
 
       outRows.add(new RowRecord(newValues));
     }
@@ -131,7 +132,7 @@ public class Analyzer {
       }
 
       // store result as string for now (consistent with Map<String,String>)
-      newValues.put(OUTPUT_COLUMN, format(ratio));
+      newValues.put(RATIO_COLUMN, format(ratio));
 
       outRows.add(new RowRecord(newValues));
     }
@@ -158,6 +159,14 @@ public class Analyzer {
         Map<String, String> newValues = new LinkedHashMap<>(rr.headersToValues());
 
         double ratio = parseDoubleSafe(newValues.get("ДоляПрибыли"));
+        if(ratio < 0) {
+          newValues.put("НакопДоля", "-");
+          newValues.put("ABC", "F");
+          newValues.put("Мин на 3 дня", "-");
+          newValues.put("Max на 7 дней", "-");
+          finalRows.add(new RowRecord(newValues));
+          continue;
+        }
         cumulative += ratio;
 
         if (cumulative > 1.0) {
@@ -277,13 +286,7 @@ public class Analyzer {
 
         double startStock;
         double endStock;
-        double middleStock = 0;
-
-        if (mapStart != null && mapEnd != null) {
-          startStock = parseRuNumber(mapStart.get(idx));
-          endStock = parseRuNumber(mapEnd.get(idx));
-          middleStock = (startStock + endStock) / 2;
-        }
+        double middleStock;
 
         PharmacySkuAggregate agg = byPharmacy.get(pharmacy);
 
@@ -295,10 +298,22 @@ public class Analyzer {
           outValues.put(qtyColumn, formatQty(agg.totalSales));
           outValues.put(aaColumn, agg.formatAbcSummary(files.size()));
 
+          try {
+            startStock = parseRuNumber(mapStart.get(idx));
+            endStock = parseRuNumber(mapEnd.get(idx));
+            middleStock = (startStock + endStock) / 2;
+          } catch (NullPointerException ex) {
+            outValues.put(turnOverColumn, "Нет Информации");
+            continue;
+          }
+
           double salesPerDay = agg.totalSales / 90;
           int turnOver = (int) Math.round(middleStock / salesPerDay);
           outValues.put(turnOverColumn, turnOver + " дн.");
+
         }
+
+
       }
 
       result.add(new RowRecord(outValues));
@@ -324,7 +339,7 @@ public class Analyzer {
   private static String normalizeAbc(String raw) {
     String s = safeTrim(raw).toUpperCase(Locale.ROOT);
     return switch (s) {
-      case "A", "B", "C" -> s;
+      case "A", "B", "C", "F" -> s;
       default -> "";
     };
   }
@@ -372,8 +387,10 @@ public class Analyzer {
   }
 
 
-    private static String format(double v) {
-        if (Double.isNaN(v) || Double.isInfinite(v)) return "";
-        return Double.toString(v);
+  private static String format(double v) {
+    if (Double.isNaN(v) || Double.isInfinite(v)) {
+      return "";
     }
+    return Double.toString(v);
+  }
 }
