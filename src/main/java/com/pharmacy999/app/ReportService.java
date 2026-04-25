@@ -25,7 +25,7 @@ public class ReportService {
             writer.write(output, outputRows);
 
         }
-        else if (mode.equals(CalculationMode.ABC_TOTAL_3_MONTHS)){
+        else if (mode.equals(CalculationMode.ABC_3_MONTHS_CORE)){
             outputRows = generateReport3(inputs, cb);
             cb.onProgress(2, 3, "Создаю отчет…");
             writer.write2(output, outputRows);
