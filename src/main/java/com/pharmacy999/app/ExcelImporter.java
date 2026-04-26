@@ -40,68 +40,150 @@ public class ExcelImporter {
   private static final String PROFIT_HEADER = "Прибыль";
 
 
-  public ImportResult readAll(List<File> files, ProgressCallback cb)
+  public ImportResult readSalesFile(File f, ProgressCallback cb)
       throws IOException {
     List<RowRecord> out = new ArrayList<>();
-    double totalProfit = 0.0;
+    double totalProfit;
 
-    for (File f : files) {
-      cb.onProgress(0, 1, "Reading " + f.getName() + "...");
+    cb.onProgress(0, 1, "Reading " + f.getName() + "...");
 
-      try (FileInputStream in = new FileInputStream(f);
-          Workbook wb = new XSSFWorkbook(in)) {
+    try (FileInputStream in = new FileInputStream(f);
+        Workbook wb = new XSSFWorkbook(in)) {
 
+      Sheet sheet = wb.getSheetAt(0);
+      FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
 
-        Sheet sheet = wb.getSheetAt(0);
-        FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+      validateHeaderRow(sheet, f.getName());
+      int lastRow = sheet.getLastRowNum();
+      String currentBranch = "";
 
-        validateHeaderRow(sheet, f.getName());
-        int lastRow = sheet.getLastRowNum();
-        String currentBranch = "";
-
-        // last row contains totals
-        Row totalsRow = sheet.getRow(lastRow);
-        if (totalsRow == null) {
-          throw new IllegalArgumentException("Totals row not found in " + f.getName());
-        }
-
-        totalProfit = parseRuNumber(getCellAsString(totalsRow.getCell(PROFIT_COL), evaluator));
-
-        for (int r = DATA_START_ROW_INDEX; r < lastRow; r++) {
-          Row row = sheet.getRow(r);
-          if (row == null || isRelevantDataRowEmpty(row)) {
-            continue;
-          }
-
-          String branch = getCellAsString(row.getCell(BRANCH_COL));
-          if (!branch.isEmpty()) {
-            currentBranch = branch;
-          } else {
-            // In case branch cells are blank within a grouped block,
-            // keep using the last seen branch name.
-            branch = currentBranch;
-          }
-
-          Map<String, String> values = new LinkedHashMap<>();
-          values.put(BRANCH_HEADER, branch);
-          values.put(PRODUCT_HEADER, getCellAsString(row.getCell(PRODUCT_COL)));
-          values.put(MANUFACTURER_HEADER, getCellAsString(row.getCell(MANUFACTURER_COL)));
-          values.put(SALES_HEADER, getCellAsString(row.getCell(SALES_COL)));
-          values.put(SUM_HEADER, getCellAsString(row.getCell(SUM_COL)));
-          values.put(INCOME_SUM_HEADER, getCellAsString(row.getCell(INCOME_SUM_COL)));
-          values.put(DISCOUNT_SUM_HEADER, getCellAsString(row.getCell(DISCOUNT_SUM_COL)));
-          values.put(PROFIT_HEADER, getCellAsString(row.getCell(PROFIT_COL)));
-
-          out.add(new RowRecord(f.getName(), r + 1, values));
-
-        }
+      // last row contains totals
+      Row totalsRow = sheet.getRow(lastRow);
+      if (totalsRow == null) {
+        throw new IllegalArgumentException("Totals row not found in " + f.getName());
       }
 
+      totalProfit = parseRuNumber(getCellAsString(totalsRow.getCell(PROFIT_COL), evaluator));
 
+      for (int r = DATA_START_ROW_INDEX; r < lastRow; r++) {
+        Row row = sheet.getRow(r);
+        if (row == null || isRelevantDataRowEmpty(row)) {
+          continue;
+        }
+        String branch = getCellAsString(row.getCell(BRANCH_COL));
+
+        if (isClosedPharmacy(branch)) {
+          continue;
+        }
+
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put(BRANCH_HEADER, branch);
+        values.put(PRODUCT_HEADER, getCellAsString(row.getCell(PRODUCT_COL)));
+        values.put(MANUFACTURER_HEADER, getCellAsString(row.getCell(MANUFACTURER_COL)));
+        values.put(SALES_HEADER, getCellAsString(row.getCell(SALES_COL)));
+        values.put(SUM_HEADER, getCellAsString(row.getCell(SUM_COL)));
+        values.put(INCOME_SUM_HEADER, getCellAsString(row.getCell(INCOME_SUM_COL)));
+        values.put(DISCOUNT_SUM_HEADER, getCellAsString(row.getCell(DISCOUNT_SUM_COL)));
+        values.put(PROFIT_HEADER, getCellAsString(row.getCell(PROFIT_COL)));
+
+        out.add(new RowRecord(values));
+
+      }
     }
+
     return new ImportResult(out, totalProfit);
 
+  }
 
+  public List<RowRecord> readABCandStockFile(File f, ProgressCallback cb) throws IOException {
+    List<RowRecord> result = new ArrayList<>();
+
+    cb.onProgress(0, 1, "Reading " + f.getName() + "...");
+
+    try (FileInputStream in = new FileInputStream(f);
+        Workbook wb = new XSSFWorkbook(in)) {
+
+      Sheet sheet = wb.getSheetAt(0);
+
+      Iterator<Row> rowIterator = sheet.iterator();
+      if (!rowIterator.hasNext()) {
+        return result;
+      }
+
+      // --- Read header row --
+      int headerRowIndex = detectHeaderRowIndex(sheet);
+      Row headerRow = sheet.getRow(headerRowIndex);
+      List<String> headers = readHeaders(headerRow);
+
+      int rowIndex = 0;
+
+      // --- Read data rows ---
+      for (int r = headerRowIndex + 1; r <= sheet.getLastRowNum(); r++) {
+        Row row = sheet.getRow(r);
+        if (row == null) {
+          continue;
+        }
+
+        Map<String, String> values = new LinkedHashMap<>();
+
+        for (int c = 0; c < headers.size(); c++) {
+          String header = headers.get(c);
+          Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+          //String value = readCell(cell);
+          String value = getCellAsString(cell);
+          values.put(header, value);
+        }
+
+        // skip completely empty rows
+        if (isEmptyRow(values)) {
+          continue;
+        }
+
+        result.add(new RowRecord(values));
+      }
+    }
+
+    return result;
+  }
+
+
+  private List<String> readHeaders(Row headerRow) {
+    List<String> headers = new ArrayList<>();
+
+    int lastCell = headerRow.getLastCellNum();
+    for (int c = 0; c < lastCell; c++) {
+      Cell cell = headerRow.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+      //String header = readCell(cell);
+      String header = getCellAsString(cell);
+
+      if (header.isBlank()) {
+        header = "COLUMN_" + c; // fallback
+      }
+
+      headers.add(header.trim());
+    }
+
+    return headers;
+  }
+
+  private static int detectHeaderRowIndex(Sheet sheet) {
+    Row firstRow = sheet.getRow(0);
+    if (firstRow == null) {
+      return 0;
+    }
+    Cell cell = firstRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+    if (cell == null) {
+      return 0;
+    }
+    DataFormatter formatter = new DataFormatter();
+    String firstRowText = formatter.formatCellValue(cell).toLowerCase(Locale.ROOT);
+
+    if (firstRowText.contains("оборотная ведомость") && firstRowText.contains("горизонтальная")) {
+      return 1;
+    }
+
+    return 0;
   }
 
   private void validateHeaderRow(Sheet sheet, String fileName) {
@@ -147,9 +229,22 @@ public class ExcelImporter {
     return dataFormatter.formatCellValue(cell)
         .trim();
   }
+
+  private static boolean isEmptyRow(Map<String, String> values) {
+    for (String v : values.values()) {
+      if (v != null && !v.isBlank()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private String getCellAsString(Cell cell, FormulaEvaluator evaluator) {
-    if (cell == null) return "";
-    return dataFormatter.formatCellValue(cell, evaluator).trim();
+    if (cell == null) {
+      return "";
+    }
+    return dataFormatter.formatCellValue(cell, evaluator)
+        .trim();
   }
 
   private double parseRuNumber(String s) {
@@ -169,5 +264,16 @@ public class ExcelImporter {
     } catch (NumberFormatException e) {
       return Double.NaN;
     }
+  }
+
+  private boolean isClosedPharmacy(String name) {
+    String sanitized = name.trim();
+    return "Аптека №013".equalsIgnoreCase(sanitized) ||
+        "Аптека №005 (Гунча)".equalsIgnoreCase(sanitized) ||
+        "Аптека №012 (Ялангач)".equalsIgnoreCase(sanitized) ||
+        "Аптека №019 (Ц-1)".equalsIgnoreCase(sanitized) ||
+        "Аптека №013 (Шифонур)".equalsIgnoreCase(sanitized);
+
+
   }
 }

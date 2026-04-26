@@ -31,14 +31,50 @@ public class MainApp extends Application {
 
     RadioButton abcPerPharmacyRadio = new RadioButton("ABC по аптекам");
     RadioButton abcTotalRadio = new RadioButton("ABC по сети");
+    RadioButton abc3monthsCore = new RadioButton("ABC 3 месяца (Палитра)");
+    RadioButton abcAndStock = new RadioButton("ABC + Остаток на конец");
 
 
     ToggleGroup modeGroup = new ToggleGroup();
     abcPerPharmacyRadio.setToggleGroup(modeGroup);
     abcTotalRadio.setToggleGroup(modeGroup);
+    abc3monthsCore.setToggleGroup(modeGroup);
+    abcAndStock.setToggleGroup(modeGroup);
+
+    Label inputHintLabel = new Label();
+    inputHintLabel.setWrapText(true);
+    inputHintLabel.setStyle("""
+    -fx-background-color: #f3f6fa;
+    -fx-padding: 8;
+    -fx-border-color: #d0d7de;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    """);
 
     // default selection
     abcPerPharmacyRadio.setSelected(true);
+    inputHintLabel.setText("""
+        Загрузите один Excel файл с продажами за период.""");
+
+    modeGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+      if (newToggle == abcPerPharmacyRadio) {
+        inputHintLabel.setText("""
+            Загрузите один Excel файл с продажами за период.""");
+      }
+      else if (newToggle == abcTotalRadio) {
+        inputHintLabel.setText("""
+            Загрузите один Excel файл с продажами за период.""");
+      }
+      else if (newToggle == abc3monthsCore) {
+        inputHintLabel.setText("""
+        Загрузите 3 файла с продажами за 3 мес. и опционально Горизонт. Оборот. Ведомость за тот же период.""");
+      }
+      else if (newToggle == abcAndStock) {
+        inputHintLabel.setText("""
+        Загрузите файл "ABC 3 месяца (палитра)" и горизонтальную оборотную ведомость.
+        """);
+      }
+    });
 
     pickFilesBtn.setOnAction(e -> {
       FileChooser chooser = new FileChooser();
@@ -49,14 +85,15 @@ public class MainApp extends Application {
           );
       List<File> files = chooser.showOpenMultipleDialog(stage);
       if (files != null && !files.isEmpty()) {
-        selectedFiles.clear();
-        selectedFiles.addAll(files);
-        fileList.getItems()
-            .setAll(selectedFiles.stream()
-                .map(File::getAbsolutePath)
-                .toList());
-        statusLabel.setText("Выбраны " + selectedFiles.size() + " файлы.");
-        runBtn.setDisable(false);
+
+        for (File file : files) {
+          if (!selectedFiles.contains(file)) {
+            selectedFiles.add(file);
+            fileList.getItems().add(file.getAbsolutePath());
+          }
+        }
+        statusLabel.setText("Выбраны " + selectedFiles.size() + " файл(а).");
+        runBtn.setDisable(selectedFiles.isEmpty());
       }
     });
 
@@ -69,16 +106,35 @@ public class MainApp extends Application {
               new FileChooser.ExtensionFilter("Excel files (*.xlsx)", "*.xlsx")
           );
 
-      CalculationMode mode = abcPerPharmacyRadio.isSelected()
-          ? CalculationMode.ABC_PER_PHARMACY
-          : CalculationMode.ABC_TOTAL;
+      CalculationMode mode;
+
+      if(abcPerPharmacyRadio.isSelected()){
+        mode = CalculationMode.ABC_PER_PHARMACY;
+      }
+      else if(abcTotalRadio.isSelected()){
+        mode = CalculationMode.ABC_TOTAL;
+      }
+      else if(abc3monthsCore.isSelected()){
+        mode = CalculationMode.ABC_3_MONTHS_CORE;
+      }
+      else{
+        mode = CalculationMode.ABC_and_STOCK;
+      }
 
       String fileName = selectedFiles.getFirst().getName();
       if(mode.equals(CalculationMode.ABC_PER_PHARMACY)){
         saveChooser.setInitialFileName("ABC по аптекам " + fileName);
       }
-      else{
+      else if (mode.equals(CalculationMode.ABC_TOTAL)){
         saveChooser.setInitialFileName("ABC по cети " + fileName);
+      }
+      else if(mode.equals(CalculationMode.ABC_3_MONTHS_CORE)){
+        saveChooser.setInitialFileName("ABC 3 месяца палитра");
+        //TODO extract dates from input files and set those after the name,
+        //TODO e.g., ABC 3 месяца палитра с 01.01.2026 - 31.03.2026
+      }
+      else{
+        saveChooser.setInitialFileName("ABC 3 месяца палитра + остаток");
       }
       File out = saveChooser.showSaveDialog(stage);
       if (out == null) {
@@ -89,6 +145,8 @@ public class MainApp extends Application {
       pickFilesBtn.setDisable(true);
       abcTotalRadio.setDisable(true);
       abcPerPharmacyRadio.setDisable(true);
+      abc3monthsCore.setDisable(true);
+      abcAndStock.setDisable(true);
 
       progressBar.setProgress(0);
       statusLabel.setText("Работаю…");
@@ -124,6 +182,8 @@ public class MainApp extends Application {
         runBtn.setDisable(false);
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
+        abc3monthsCore.setDisable(false);
+        abcAndStock.setDisable(false);
       });
 
       task.setOnFailed(ev -> {
@@ -138,6 +198,8 @@ public class MainApp extends Application {
         runBtn.setDisable(false);
         abcTotalRadio.setDisable(false);
         abcPerPharmacyRadio.setDisable(false);
+        abc3monthsCore.setDisable(false);
+        abcAndStock.setDisable(false);
       });
 
       new Thread(task, "report-task").start();
@@ -146,7 +208,8 @@ public class MainApp extends Application {
     VBox root = new VBox(10,
         new HBox(10, pickFilesBtn, runBtn),
         new Label("Режим анализа:"),
-        new HBox(16, abcPerPharmacyRadio, abcTotalRadio),
+        new HBox(16, abcPerPharmacyRadio, abcTotalRadio, abc3monthsCore, abcAndStock),
+        inputHintLabel,
         new Label("Выбранные файлы:"),
         fileList,
         new Label("Статус:"),
@@ -157,7 +220,7 @@ public class MainApp extends Application {
     fileList.setPrefHeight(200);
 
     stage.setTitle(format("ABC - Min/Max Report Generator ({0})", VERSION));
-    stage.setScene(new Scene(root, 720, 420));
+    stage.setScene(new Scene(root, 720, 500));
     stage.show();
   }
 
